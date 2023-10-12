@@ -108,12 +108,15 @@ fig4_file_name <- paste0(here("output", "surface drawdown "), run_id, run_time, 
 save_image(fig4, fig4_file_name)
 
 
+# Error in py_module_import(module, convert = convert) : 
+  # ModuleNotFoundError: No module named 'kaleido'
+
 # If the save_image() throws a reticulate error:
-# install.packages('reticulate') 
-# reticulate::install_miniconda() 
-# reticulate::conda_install('r-reticulate', 'python-kaleido') 
-# reticulate::conda_install('r-reticulate', 'plotly', channel = 'plotly') 
-# reticulate::use_miniconda('r-reticulate')
+# install.packages('reticulate')
+reticulate::install_miniconda()
+reticulate::conda_install('r-reticulate', 'python-kaleido')
+reticulate::conda_install('r-reticulate', 'plotly', channel = 'plotly')
+reticulate::use_miniconda('r-reticulate')
 
 
 # # volcano is a numeric matrix that ships with R
