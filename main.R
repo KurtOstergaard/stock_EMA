@@ -1,4 +1,4 @@
-#  Single stock exponential moving average buy and sell signals
+#  main.R | stock_EMA | Single stock EMA buy and sell signals
 
 rm(list=ls()) ###############
 # library(conflicted)
@@ -64,20 +64,14 @@ fast_step <- 1
 slow_high <- 200
 slow_low <- 25
 slow_step <- 5
-drying_paint <- (fast_high - fast_low +1)/fast_step * (slow_high-slow_low+1)/slow_step
+drying_paint <- (fast_high/fast_step - fast_low/fast_step +1) * 
+  (slow_high/slow_step - slow_low/slow_step +1)
 runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
                     fast=seq(fast_low, fast_high, fast_step))
 
 df_orig <- read_csv("BATS_ULTA, 1D_8ba0c.csv", col_names = TRUE)
-df <- df_orig
-# calculate ATR, average true range, for risk sizing the trades
-df <- df |>
-  select(time:close) |>
-  mutate(hc_yest = high - lag(close),
-         lc_yest = lag(close) - low,
-         range = high - low) |>
-  mutate(ATR = pmax(range, hc_yest, lc_yest, na.rm = TRUE))
-df$atr_EMA <- ewmaRcpp(df$ATR, 20)
+df <- df_orig |>
+  select(time:close) 
 
 # discern time interval from input file
 first_row_time <- df$time[1] ; second_row_time <- df$time[2] ; third_row_time <- df$time[3]
@@ -85,16 +79,15 @@ interval <- min(as.numeric(difftime(second_row_time, first_row_time, units = "mi
                 as.numeric(difftime(third_row_time, second_row_time, units = "mins")))
 if(interval <= 0) Warning("HOLY SHIT! WE HAVE REACHED THE END OF TIME!") # file sorted backwards?
 
-# candles is a string for in graphs
+# candles is a string for in graph titles
 candles <- if(interval>=1440) {
-  sprintf("%.0f hr", interval/1440) 
+  sprintf("%.0f day", interval/1440) 
 } else {
-  sprintf("%.0f min", interval/60)
+  sprintf("%.0f hr", interval/60)
 }
 # time management for market 
 start_date <- min(df$time) ; end_date <- max(df$time)
 date_range <- as.numeric(difftime(end_date, start_date, units = "days"))
-dates_run <- floor_date(start_date, unit="days"):floor_date(end_date, unit = "days")
 
 the_high <- max(df$high) ; the_low <- min(df$low) ; the_range <- the_high - the_low
 trades_global = tibble() # one big file for all teh trades on each run.
@@ -104,7 +97,7 @@ epoch <- paste0(get_month(start_date),"-", get_day(start_date), "-",
                 "-", get_day(end_date), "-", get_year(end_date)-2000)
 
 
-start_value <- df$close[1]  # start with 1 share at the opening price
+start_value <- 1e4  # start with $10k
 skid <- 0   # skid is expected loss on trade execution, set to ZERO for building the model!
 
 df |>
@@ -116,12 +109,16 @@ df |>
                        nrow(df), " rows    ", drying_paint, " runs")) +
   theme(legend.position = "none")
 
+heat <- 0.1 # risk budget, 10% of book equity for each trade
+ATR_multiplier <- 5 # dynamic risk sizing based on current volatility via ATR
 df_og <- df
+
+
 ###################### optimization sequence #############################
 
 
-for (j in seq_len(nrow(runs))) {
-  # j <- 1
+# for (j in seq_len(nrow(runs))) {
+  j <- 121
   
   df <- df_og
   fast_lag <- runs$fast[j]
@@ -139,54 +136,78 @@ for (j in seq_len(nrow(runs))) {
   
   # exponential moving averages
   df$Efast <- ewmaRcpp(df$close, fast_lag)    
-  df$Eslow <- ewmaRcpp(df$close, slow_lag)  
+  df$Eslow <- ewmaRcpp(df$close, slow_lag)  +1e-6
   
   # calculate HMA, Hull Moving Avg, cross trade signal and ATR, average true range
   df <- df |>
     # select(time:close, Volume, Efast, Eslow) |>
     mutate(time = as.POSIXct(time, tz = "UTC"), # Ensure time is in POSIXct format
-           Hfast = HMA(close, fast_lag),
-           Hslow = (HMA(close, slow_lag) +1e-6), 
-           # dfast = if_else(fast-lag(fast)==0, 1e-7, fast-lag(fast)),
-           # dslow = if_else(slow-lag(slow)==0, 1e-7, slow-lag(slow)),
+           dfast = if_else(Efast-lag(Efast)==0, 1e-7, Efast-lag(Efast)),
+           dslow = if_else(Eslow-lag(Eslow)==0, 1e-7, Eslow-lag(Eslow)),
+           # Hfast = HMA(close, fast_lag),
+           # Hslow = (HMA(close, slow_lag) +1e-6), 
            cross = Efast - Eslow,              #      cross moving avg selection
-           on = if_else(cross > 0 & lag(cross) < 0, 1, 0), 
-           off = if_else(cross < 0 & lag(cross) > 0, -1, 0),
-           signal = on + off) |>
+           on = if_else(cross >= 0 & lag(cross) < 0, 1, 0), 
+           off = if_else(cross < 0 & lag(cross) >= 0, -1, 0),
+           signal = on + off,
+           amount = NA) |>
     drop_na(on) |>
     drop_na(off)
+    df$off[1] <- 0      
   
-    df$off[1] <- 0
-    if(df$cross[1] > 0) df$on[1] <- 1    # trade signal details
-    
   df <- df |>
     mutate(open_trade = cumsum(signal),
-           buy_date = if_else(on == 1, as_datetime(lead(time), tz="America/New_York"), NA),
-           sell_date = if_else(off == -1, as_datetime(lead(time), tz="America/New_York"), NA),
-           buy_price = if_else(on == 1, lead(open) + skid, NA),
-           sell_price = if_else(off == -1, lead(open) - skid, 0),
-           buy_amount = 1,) |>  # no work on trade sizing yet, important though it is
-    fill(buy_price) |>
-    fill(buy_date)  
+           open_date = if_else(on == 1, as_datetime(lead(time), tz="America/New_York"), NA),
+           close_date = if_else(off == -1, as_datetime(lead(time), tz="America/New_York"), NA),
+           open_price = if_else(on == 1, lead(open) + skid, NA),
+           close_price = if_else(off == -1, lead(open) - skid, 0)) |>  
+    fill(open_price) |>
+    fill(open_date)  
   
+      # df$amount[1] <- start_value
+    if(df$cross[1] > 0) {     # trade signal details
+      df$on[1] <- 1
+      df$signal[1] <- 1
+      df$amount[1] <- floor(start_value / df$open[2])
+      # df$amount <- floor((start_value * heat)  / (ATR_multiplier * df$atr_EMA[[1]]))
+      }
+    
   # Close out last trade if long when data file runs out
   if(df$on[nrow(df)] == 1) {
     df$on[nrow(df)] = 0 ; df$signal[nrow(df)] = 0
   } else if (df$cross[nrow(df)] > 0 | df$signal[nrow(df)] == -1) {
     df$off[nrow(df)] <- -1
     df$signal[nrow(df)] <- -1
-    df$sell_date[nrow(df)] <- df$time[nrow(df)]
-    df$sell_price[nrow(df)] <- df$close[nrow(df)]
+    df$close_date[nrow(df)] <- df$time[nrow(df)]
+    df$close_price[nrow(df)] <- df$close[nrow(df)]
   }
+  
+  for (i in seq2(2, nrow(df))) {
+      df$closed_pnl[i] <- df$closed_pnl[i-1]
+      df$amount[i] <- df$amount[i-1]
+      if(df$signal[i] == -1){
+        df$closed_pnl[i] = df$closed_pnl[i] + (df$close_price[i] - 
+          df$open_price[i]) * df$amount[i]
+        df$trade_pnl <- (df$close_price[i] - df$open_price[i]) * df$amount[i]
+        df$amount[i] = 0
+        df$open_pnl[i] = 0
+      } else if(df$signal[i] == 1){
+        df$amount[i] = df$closed_pnl[i] / open_price[i]
+        # df$amount[i] = df$closed_pnl[[i]] / open_price[[i]]
+      } else {
+        df$open_pnl[i] = (df$close[i] - df$open_price[i]) * df$amount[i]
+      }
+  }
+  
   
   # cume trade metrics
   df <- df |>
-    drop_na(buy_price) |>
+    drop_na(open_price) |>
     mutate(
-      trade_pnl = if_else(signal == -1, (sell_price - buy_price) * buy_amount, 0),
+      trade_pnl = if_else(signal == -1, (close_price - open_price) * amount, 0),
       win_lose = as.factor(if_else(trade_pnl<0, "loser", "winner")),
       closed_pnl = cumsum(trade_pnl) + start_value,
-      open_pnl = (close - buy_price) * buy_amount * open_trade,
+      open_pnl = (close - open_price) * amount * open_trade,
       equity = open_pnl + closed_pnl,
       highwater = cummax(equity),
       lake = highwater - equity,
@@ -196,32 +217,32 @@ for (j in seq_len(nrow(runs))) {
   trade_test <- sum(df$signal) 
   if(trade_test != 0) warning("HOLY SHIT! THE TRADES ARE FUCKED!")
   trades <- df |>
-    select(off, buy_date:drawdown) |>
+    select(off, open_date:drawdown) |>
     filter(off == -1) |>
     mutate(
-      off=NULL, open_trade=NULL, buy_amount=NULL)
+      off=NULL, open_trade=NULL, amount=NULL)
   
   #  MAE  MFE calc
   trades <- trades |>
     mutate(MAE = map_dbl(1:n(), ~ {
       row <- .x
       df |>
-        filter(time >= trades$buy_date[row], time <= trades$sell_date[row]) |>
+        filter(time >= trades$open_date[row], time <= trades$close_date[row]) |>
         pull(low) |>
         min(na.rm = TRUE)
     }), .after=win_lose,
-    MAE_mark = MAE - buy_price,
-    MAE_percent = (MAE / buy_price) - 1,
+    MAE_mark = MAE - open_price,
+    MAE_percent = (MAE / open_price) - 1,
     MFE = map_dbl(1:n(), ~ {
       row <- .x
       df |>
-        filter(time >= trades$buy_date[row], time <= trades$sell_date[row]) |>
+        filter(time >= trades$open_date[row], time <= trades$close_date[row]) |>
         pull(high) |>
         max(na.rm = TRUE)
     }),
-    MFE_mark = MFE - buy_price,
-    MFE_percent = (MFE / buy_price) - 1,
-    trade_pnl_percent = trade_pnl / buy_price)
+    MFE_mark = MFE - open_price,
+    MFE_percent = (MFE / open_price) - 1,
+    trade_pnl_percent = trade_pnl / open_price)
   
   # risk and return calculation
   end_value <- df$equity[nrow(df)]  
@@ -250,8 +271,8 @@ for (j in seq_len(nrow(runs))) {
     bind_rows(trade_tmp)
   
   
-}       #################### optimization loop end    ##########################
-# j <- j +1  
+# }       #################### optimization loop end    ##########################
+j <- j +1
 
 
 # save the results and trades_global files
@@ -260,7 +281,8 @@ run_id <- paste0( " ", candles," fast ", min(runs$fast), "-", max(runs$fast),
 results_file_name <- paste0(here("output", "results "), nrow(results), " runs ", 
                             run_id, run_time, ".csv", sep="")
 write_csv(results, results_file_name)
-trade_file_name <- paste0(here("output", "trades "), nrow(runs), " runs", run_id, run_time, ".csv", sep="")
+trade_file_name <- paste0(here("output", "trades "), nrow(runs), " runs", run_id,
+                          run_time, ".csv", sep="")
 write_csv(trades_global, trade_file_name)
 
 forever <- Sys.time() - start_time
@@ -274,11 +296,11 @@ sprintf("Yo, %1.2f min,  %1.2f per run, %i runs, %s records, over %1.2f days of 
 df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
-  geom_smooth(method = "lm", linewidth = 10) +
+  geom_smooth(method = "lm", linewidth = 25, alpha = 0.2) +
   # geom_line(aes(y=fast, alpha = 0.2)) +
   # geom_line(aes(y=slow, alpha = 0.2)) +
-  geom_line(aes(y=Efast, alpha = 0.2)) +
-  geom_line(aes(y=Eslow, alpha = 0.2)) +
+  geom_line(aes(y=Efast, alpha = 0.2), color = "RED") +
+  geom_line(aes(y=Eslow, alpha = 0.2), color = "GREEN") +
   labs(title=paste("Run completed!"),
        subtitle=paste0(candles, " periods, ", round(date_range, 0),
                        "D of data, ", epoch,",   fast: ", min(runs$fast), "-", 
