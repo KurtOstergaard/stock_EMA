@@ -16,7 +16,7 @@ slow_type <- "EMA"   # type of moving avg Hull or EMA
 
 results <- results |> dplyr::filter(drawdown != 0)
 
-res1 <- results |>
+res1 <- results |>        #  ICAGR
   select(slow_lag, fast_lag, ICAGR) |>
   pivot_wider(names_from = slow_lag, values_from = ICAGR) |>
   as.matrix()
@@ -38,7 +38,7 @@ fig1
 fig1_file_name <- paste0(here("output", "surface growth "), run_id, run_time, ".pdf", sep="")
 save_image(fig1, fig1_file_name)
 
-res2 <- results |>
+res2 <- results |>         # bliss
   select(slow_lag, fast_lag, bliss) |>
   pivot_wider(names_from = slow_lag, values_from = bliss) |>
   as.matrix()
@@ -60,7 +60,7 @@ fig2
 fig2_file_name <- paste0(here("output", "surface bliss "), run_id, run_time, ".pdf", sep="")
 save_image(fig2, fig2_file_name)
 
-res3 <- results |>
+res3 <- results |>    # lake
   mutate(dry_lake = (1 -lake)) |>
   select(slow_lag, fast_lag, dry_lake) |>
   pivot_wider(names_from = slow_lag, values_from = dry_lake) |>
@@ -84,7 +84,7 @@ fig3_file_name <- paste0(here("output", "surface lake "), run_id, run_time, ".pd
 save_image(fig3, fig3_file_name)
 
 
-res4 <- results |>
+res4 <- results |>     # drawdown
   mutate(remaining = (1 -drawdown)) |>
   select(slow_lag, fast_lag, remaining) |>
   pivot_wider(names_from = slow_lag, values_from = remaining) |>
@@ -112,7 +112,7 @@ save_image(fig4, fig4_file_name)
   # ModuleNotFoundError: No module named 'kaleido'
 
 # If the save_image() throws a reticulate error:
-# install.packages('reticulate')
+install.packages('reticulate')
 reticulate::install_miniconda()
 reticulate::conda_install('r-reticulate', 'python-kaleido')
 reticulate::conda_install('r-reticulate', 'plotly', channel = 'plotly')
