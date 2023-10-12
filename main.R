@@ -58,18 +58,18 @@ sourceCpp(
     ")     ###################
 
 ticker <- "ULTA"  
-fast_high <- 15
-fast_low <- 2
-fast_step <- 1
-slow_high <- 200
-slow_low <- 25
-slow_step <- 5
+fast_high <- 2000
+fast_low <- 50
+fast_step <- 25
+slow_high <- 8000
+slow_low <- 100
+slow_step <- 50
 drying_paint <- (fast_high/fast_step - fast_low/fast_step +1) * 
   (slow_high/slow_step - slow_low/slow_step +1)
 runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
                     fast=seq(fast_low, fast_high, fast_step))
 
-df_orig <- read_csv("BATS_ULTA, 1D_8ba0c.csv", col_names = TRUE)
+df_orig <- read_csv("BATS_ULTA, 30_8f87a.csv", col_names = TRUE)
 df <- df_orig |>
   select(time:close) 
 
@@ -82,9 +82,12 @@ if(interval <= 0) Warning("HOLY SHIT! WE HAVE REACHED THE END OF TIME!") # file 
 # candles is a string for in graph titles
 candles <- if(interval>=1440) {
   sprintf("%.0f day", interval/1440) 
-} else {
+} else if (interval>=60){
   sprintf("%.0f hr", interval/60)
+} else {
+  sprintf("%.0f min", interval)
 }
+
 # time management for market 
 start_date <- min(df$time) ; end_date <- max(df$time)
 date_range <- as.numeric(difftime(end_date, start_date, units = "days"))
@@ -96,29 +99,30 @@ epoch <- paste0(get_month(start_date),"-", get_day(start_date), "-",
                 get_year(start_date)-2000," to ", get_month(end_date), 
                 "-", get_day(end_date), "-", get_year(end_date)-2000)
 
-
-start_value <- 1e4  # start with $10k
+amount <- 100
+# start_value <- 1e4  
 skid <- 0   # skid is expected loss on trade execution, set to ZERO for building the model!
+buy_n_hold <- log(df$close[nrow(df)]/df$open[1])/(date_range/365.25)
 
 df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
-  labs(title=paste("Running next calculation..."),
+  labs(title=sprintf("Running next calculation...  ICAGR: %1.2f%% buy and hold", buy_n_hold *100),
        subtitle=paste0(candles, " periods, ",epoch, 
                        "       High: ", the_high, "  Low: ", the_low, "      ",
                        nrow(df), " rows    ", drying_paint, " runs")) +
   theme(legend.position = "none")
 
-heat <- 0.1 # risk budget, 10% of book equity for each trade
-ATR_multiplier <- 5 # dynamic risk sizing based on current volatility via ATR
+# heat <- 0.1 # risk budget, 10% of book equity for each trade
+# ATR_multiplier <- 5 # dynamic risk sizing based on current volatility via ATR
 df_og <- df
 
 
 ###################### optimization sequence #############################
 
 
-# for (j in seq_len(nrow(runs))) {
-  j <- 121
+for (j in seq_len(nrow(runs))) {
+  # j <- 121
   
   df <- df_og
   fast_lag <- runs$fast[j]
@@ -149,11 +153,11 @@ df_og <- df
            cross = Efast - Eslow,              #      cross moving avg selection
            on = if_else(cross >= 0 & lag(cross) < 0, 1, 0), 
            off = if_else(cross < 0 & lag(cross) >= 0, -1, 0),
-           signal = on + off,
-           amount = NA) |>
+           signal = on + off) |>
     drop_na(on) |>
     drop_na(off)
     df$off[1] <- 0      
+  start_value <- df$open[match(1, df$on) +1] * 100
   
   df <- df |>
     mutate(open_trade = cumsum(signal),
@@ -168,7 +172,7 @@ df_og <- df
     if(df$cross[1] > 0) {     # trade signal details
       df$on[1] <- 1
       df$signal[1] <- 1
-      df$amount[1] <- floor(start_value / df$open[2])
+      # df$amount[1] <- floor(start_value / df$open[2])
       # df$amount <- floor((start_value * heat)  / (ATR_multiplier * df$atr_EMA[[1]]))
       }
     
@@ -181,24 +185,6 @@ df_og <- df
     df$close_date[nrow(df)] <- df$time[nrow(df)]
     df$close_price[nrow(df)] <- df$close[nrow(df)]
   }
-  
-  for (i in seq2(2, nrow(df))) {
-      df$closed_pnl[i] <- df$closed_pnl[i-1]
-      df$amount[i] <- df$amount[i-1]
-      if(df$signal[i] == -1){
-        df$closed_pnl[i] = df$closed_pnl[i] + (df$close_price[i] - 
-          df$open_price[i]) * df$amount[i]
-        df$trade_pnl <- (df$close_price[i] - df$open_price[i]) * df$amount[i]
-        df$amount[i] = 0
-        df$open_pnl[i] = 0
-      } else if(df$signal[i] == 1){
-        df$amount[i] = df$closed_pnl[i] / open_price[i]
-        # df$amount[i] = df$closed_pnl[[i]] / open_price[[i]]
-      } else {
-        df$open_pnl[i] = (df$close[i] - df$open_price[i]) * df$amount[i]
-      }
-  }
-  
   
   # cume trade metrics
   df <- df |>
@@ -220,7 +206,7 @@ df_og <- df
     select(off, open_date:drawdown) |>
     filter(off == -1) |>
     mutate(
-      off=NULL, open_trade=NULL, amount=NULL)
+      off=NULL, open_trade=NULL)
   
   #  MAE  MFE calc
   trades <- trades |>
@@ -271,8 +257,8 @@ df_og <- df
     bind_rows(trade_tmp)
   
   
-# }       #################### optimization loop end    ##########################
-j <- j +1
+}       #################### optimization loop end    ##########################
+# j <- j +1
 
 
 # save the results and trades_global files
@@ -285,18 +271,12 @@ trade_file_name <- paste0(here("output", "trades "), nrow(runs), " runs", run_id
                           run_time, ".csv", sep="")
 write_csv(trades_global, trade_file_name)
 
-forever <- Sys.time() - start_time
-secs <- forever  / nrow(runs)
-sprintf("Yo, %1.2f min,  %1.2f per run, %i runs, %s records, over %1.2f days of data", 
-        forever, secs, nrow(results), format(nrow(df), big.mark=","), date_range)
-
-
 ##########################
 
 df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
-  geom_smooth(method = "lm", linewidth = 25, alpha = 0.2) +
+  geom_smooth(method = "lm", linewidth = 25, alpha = 0.1) +
   # geom_line(aes(y=fast, alpha = 0.2)) +
   # geom_line(aes(y=slow, alpha = 0.2)) +
   geom_line(aes(y=Efast, alpha = 0.2), color = "RED") +
@@ -309,6 +289,12 @@ df |>
                        the_low)) +
   theme(legend.position = "none")
 
+
+
+forever <- Sys.time() - start_time
+secs <- 60 *forever  / nrow(runs)
+sprintf("Yo, %1.2f min,  %1.2f per run, %i runs, %s records, over %1.0f days of data", 
+        forever, secs, nrow(results), format(nrow(df), big.mark=","), date_range)
 
 
 
