@@ -58,18 +58,18 @@ sourceCpp(
     ")     ###################
 
 ticker <- "ULTA"  
-fast_high <- 2000
-fast_low <- 50
-fast_step <- 25
-slow_high <- 8000
-slow_low <- 100
-slow_step <- 50
+fast_high <- 100
+fast_low <- 40
+fast_step <- 5
+slow_high <- 200
+slow_low <- 25
+slow_step <- 5
 drying_paint <- (fast_high/fast_step - fast_low/fast_step +1) * 
   (slow_high/slow_step - slow_low/slow_step +1)
 runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
                     fast=seq(fast_low, fast_high, fast_step))
 
-df_orig <- read_csv("BATS_ULTA, 30_8f87a.csv", col_names = TRUE)
+df_orig <- read_csv("BATS_ULTA, 1D_8ba0c.csv", col_names = TRUE)
 df <- df_orig |>
   select(time:close) 
 
@@ -99,8 +99,7 @@ epoch <- paste0(get_month(start_date),"-", get_day(start_date), "-",
                 get_year(start_date)-2000," to ", get_month(end_date), 
                 "-", get_day(end_date), "-", get_year(end_date)-2000)
 
-amount <- 100
-# start_value <- 1e4  
+start_value <- 1e4
 skid <- 0   # skid is expected loss on trade execution, set to ZERO for building the model!
 buy_n_hold <- log(df$close[nrow(df)]/df$open[1])/(date_range/365.25)
 
@@ -122,7 +121,7 @@ df_og <- df
 
 
 for (j in seq_len(nrow(runs))) {
-  # j <- 121
+  # j <- 12403
   
   df <- df_og
   fast_lag <- runs$fast[j]
@@ -157,49 +156,93 @@ for (j in seq_len(nrow(runs))) {
     drop_na(on) |>
     drop_na(off)
     df$off[1] <- 0      
-  start_value <- df$open[match(1, df$on) +1] * 100
+  # start_value <- df$open[match(1, df$on) +1] * 100
   
   df <- df |>
     mutate(open_trade = cumsum(signal),
            open_date = if_else(on == 1, as_datetime(lead(time), tz="America/New_York"), NA),
            close_date = if_else(off == -1, as_datetime(lead(time), tz="America/New_York"), NA),
            open_price = if_else(on == 1, lead(open) + skid, NA),
-           close_price = if_else(off == -1, lead(open) - skid, 0)) |>  
+           close_price = if_else(off == -1, lead(open) - skid, 0),
+           amount = NA,
+           trade_pnl = 0,  
+           closed_pnl = 0,
+           open_pnl = 0,
+           equity = NA) |>
     fill(open_price) |>
-    fill(open_date)  
+    fill(open_date)  |>
+    drop_na(open_price)
   
-      # df$amount[1] <- start_value
+      # First row set up
     if(df$cross[1] > 0) {     # trade signal details
       df$on[1] <- 1
       df$signal[1] <- 1
-      # df$amount[1] <- floor(start_value / df$open[2])
       # df$amount <- floor((start_value * heat)  / (ATR_multiplier * df$atr_EMA[[1]]))
       }
     
+      
   # Close out last trade if long when data file runs out
   if(df$on[nrow(df)] == 1) {
     df$on[nrow(df)] = 0 ; df$signal[nrow(df)] = 0
   } else if (df$cross[nrow(df)] > 0 | df$signal[nrow(df)] == -1) {
     df$off[nrow(df)] <- -1
     df$signal[nrow(df)] <- -1
+    df$open_trade[nrow(df)] <- 0
     df$close_date[nrow(df)] <- df$time[nrow(df)]
     df$close_price[nrow(df)] <- df$close[nrow(df)]
   }
+ 
+  # Calc trade pnl 
+  trade_test <- sum(df$signal) 
+  if(trade_test != 0) warning("HOLY SHIT! THE TRADES ARE FUCKED!")
+  tpnl <- df |>
+    select(off, open_date:closed_pnl) |>
+    filter(off == -1) |>
+    mutate(off=NULL)
   
+  opens <- match(tpnl$open_date,  df$open_date)
+  closes <- match(tpnl$close_date,  df$close_date)
+  
+  tpnl <- tpnl  |>
+    mutate(
+      open = opens,
+      close = closes
+    )
+  
+  tpnl$amount[1] <- floor(start_value / tpnl$open_price[1])
+  tpnl$trade_pnl[1] <- tpnl$amount[1] * (tpnl$close_price[1] - tpnl$open_price[1])
+  tpnl$closed_pnl[1] <- start_value + tpnl$trade_pnl[1]
+  df$amount[tpnl$open[1]] <- tpnl$amount[1] 
+  df$trade_pnl[tpnl$close[1]] <- tpnl$trade_pnl[1]
+  df$closed_pnl[tpnl$close[1]] <- tpnl$closed_pnl[1]
+  
+  for (i in seq2(2, nrow(tpnl))) {
+    tpnl$amount[i] <- tpnl$closed_pnl[i-1] /tpnl$open_price[i]
+    tpnl$trade_pnl[i] <- tpnl$amount[i] * (tpnl$close_price[i] - tpnl$open_price[i])
+    tpnl$closed_pnl[i] <- tpnl$closed_pnl[i-1] + tpnl$trade_pnl[i]
+    
+    df$amount[tpnl$open[i]] <- tpnl$amount[i] 
+    df$trade_pnl[tpnl$close[i]] <- tpnl$trade_pnl[i]
+    df$closed_pnl[tpnl$close[i]] <- tpnl$closed_pnl[i]
+  }
+  
+
+    
   # cume trade metrics
   df <- df |>
-    drop_na(open_price) |>
+    fill(amount) |>
     mutate(
-      trade_pnl = if_else(signal == -1, (close_price - open_price) * amount, 0),
-      win_lose = as.factor(if_else(trade_pnl<0, "loser", "winner")),
-      closed_pnl = cumsum(trade_pnl) + start_value,
       open_pnl = (close - open_price) * amount * open_trade,
+      closed_pnl = cumsum(trade_pnl) + start_value,
       equity = open_pnl + closed_pnl,
+      win_lose = as.factor(if_else(trade_pnl<0, "loser", "winner")),
       highwater = cummax(equity),
       lake = highwater - equity,
       drawdown = lake / highwater)
   
-  # summary trade table 
+
+  
+    # summary trade table 
   trade_test <- sum(df$signal) 
   if(trade_test != 0) warning("HOLY SHIT! THE TRADES ARE FUCKED!")
   trades <- df |>
