@@ -37,7 +37,8 @@ csv_files <- list.files(path=here("output"), pattern = "^trades.", full.names = 
 trade_files <- lapply(csv_files, process_csv_file) |>
   bind_rows()
 colnames(trade_files) <- c("File Name", "Rows")
-View(trade_files)
+# View(trade_files)
+
 #   ################ load files  ############
 big_trades <- read_csv(trade_file_name, col_names = TRUE)
 # big_trades <- read_csv(here("output", "trades 1 runs 1 sec fast 580-580 slow 2680-2680 fr 9-18-23 to 9-19-23 21-51.csv"), col_names = TRUE)
@@ -47,8 +48,8 @@ mkt <- df_og |> select(time:close)
 # mkt <- read_csv("CME_MINI_ES1!, 1S_9e97e.csv", col_names = TRUE) |>  select(time:close)
 mkt_high <- max(mkt$high) ; mkt_low <- min(mkt$low) ; mkt_range <- mkt_high - mkt_low
 
-fast_MA <- 2000
-slow_MA <- 100
+fast_MA <- 120
+slow_MA <- 420
 
 mkt$Efast <- ewmaRcpp(mkt$close, fast_MA)    
 mkt$Eslow <- ewmaRcpp(mkt$close, slow_MA)  
@@ -71,9 +72,9 @@ mkt |>
   geom_segment(data=these_trades, aes(x=open_date, y=open_price, xend=close_date,
                                   yend=close_price, color=factor(win_lose)), linewidth = 2) +
   scale_color_manual(values= c("red", "green3")) +
-  labs(title=sprintf("%s: %0.i-%0.i, %.0f trades, ICAGR: %0.2f, DD: %0.2f, Bliss: %.2f, Lake: %.2f",  
-                     ticker, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1],
-                     these_results$drawdown[1], these_results$bliss[1], these_results$lake[1]),
+  labs(title=sprintf("%s: %0.i-%0.i, %.0f trades, ICAGR: %0.2f%%, DD: %0.2f%%, Bliss: %.2f%%, Lake: %.2f%%",  
+                     ticker, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1]*100,
+                     these_results$drawdown[1]*100, these_results$bliss[1]*100, these_results$lake[1]*100),
        subtitle=paste0(candles, " chart, ", floor(date_range), "D of data, ", epoch))+
   xlab("Date")+
   ylab(ticker) +
@@ -84,22 +85,22 @@ mkt |>
 
 mkt |>        
   ggplot(aes(x = time)) +
-  geom_line(aes(x=time, y=Eslow), alpha=0.4, color="GOLD4") +
-  geom_line(aes(x=time, y=Efast), alpha=0.4, color="GOLD1") +
+  geom_line(aes(x=time, y=Eslow), alpha=0.8, color="tomato") +
+  geom_line(aes(x=time, y=Efast), alpha=0.8, color="limegreen") +
   geom_ribbon(aes(ymin=low, ymax=high, x=time, fill = "band"))+
   scale_fill_manual("", values="gray20") +
   geom_segment(data=these_trades, aes(x=open_date, y=open_price, xend=close_date,
                                   yend=close_price, color=factor(win_lose)), linewidth = 2) +
   scale_color_manual(values= c("red", "green3")) +
-  labs(title=sprintf("%s: %0.i-%0.i, %.0f trades, ICAGR: %0.2f, DD: %0.2f, Bliss: %.2f, Lake: %.2f",  
-                     ticker, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1],
-                     these_results$drawdown[1], these_results$bliss[1], these_results$lake[1]),
-       subtitle=paste0(candles, " chart, ", floor(date_range), "D of data, ", epoch))+
+  labs(title=sprintf("%s: %0.i-%0.i, %.0f trades, ICAGR: %0.2f%%, DD: %0.2f%%, Bliss: %.2f%%, Lake: %.2f%%",  
+                     ticker, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1]*100,
+                     these_results$drawdown[1]*100, these_results$bliss[1]*100, these_results$lake[1]*100),
+       subtitle=paste0(candles, " chart, ", floor(date_range), " days of data, ", epoch))+
   xlab("Date")+
   ylab(ticker) +
   theme(legend.position = "none")
 
-ggsave(paste0(here("output", "run "), candles," ", fast_MA, 
+ggsave(paste0(here("output", "run "), ticker, " ", candles," ", fast_MA, 
               "-", slow_MA, " ", epoch, run_time, ".pdf"), 
        width=11, height=8.5, units="in", dpi=300)
 
@@ -120,7 +121,25 @@ these_trades |>   # Stop analysis
 
 ggsave(paste0(here("output", "stop "), candles," ", runs$fast[j], 
               "-", runs$slow[j], " ", epoch, run_time, " ", j, ".pdf"), 
-       width=10, height=8, units="in", dpi=300)
+       width=11, height=8.5, units="in", dpi=300)
+
+
+
+# Cover
+df |>
+  ggplot(aes(x = time, y = close)) +
+  geom_line(alpha = 0.4) +
+  labs(title=sprintf("%s:    buy and hold ICAGR: %1.2f%% ", ticker, buy_n_hold *100),
+       subtitle=paste0(candles, " periods, ",epoch, 
+                       "       High: ", the_high, "  Low: ", the_low, "      ",
+                       nrow(df), " rows    ", drying_paint, " runs")) +
+  theme(legend.position = "none")
+
+ggsave(paste0(here("output", "run "), ticker, " ", candles," ", fast_MA, 
+              "-", slow_MA, " ", epoch, run_time, ".pdf"), 
+       width=11, height=8.5, units="in", dpi=300)
+
+
 
 
 #   DON'T Use this until better numbers 
