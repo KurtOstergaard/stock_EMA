@@ -29,7 +29,7 @@ fig1 <- plot_ly(x = ~colnames(res1), y = ~rownames(res1),  z = ~res1) |>
       usecolormap=TRUE,
       highlightcolor="#ff0000",
       project=list(z=TRUE)))) |>
-  plotly::layout(title = 'Moving Average Growth Rates',
+  plotly::layout(title = 'Growth Rates',
          scene = list(
            xaxis = list(title = paste0(slow_type, " slow moving avg")),
            yaxis = list(title = paste0(fast_type, " fast moving avg")),
@@ -51,7 +51,7 @@ fig2 <- plot_ly(x = ~colnames(res2), y = ~rownames(res2),  z = ~res2) |>
       usecolormap=TRUE,
       highlightcolor="#ff0000",
       project=list(z=TRUE)))) |>
-  plotly::layout(title = 'Moving Average Bliss',
+  plotly::layout(title = 'Bliss (ICAGR / DD)',
          scene = list(
            xaxis = list(title = paste0(slow_type, " slow moving avg")),
            yaxis = list(title = paste0(fast_type, " fast moving avg")),
@@ -74,7 +74,7 @@ fig3 <- plot_ly(x = ~colnames(res3), y = ~rownames(res3),  z = ~res3) |>
       usecolormap=TRUE,
       highlightcolor="#ff0000",
       project=list(z=TRUE)))) |>
-  plotly::layout(title = 'Moving Average Lake Ratio',
+  plotly::layout(title = 'Lake Ratio',
          scene = list(
            xaxis = list(title = paste0(slow_type, " slow moving avg")),
            yaxis = list(title = paste0(fast_type, " fast moving avg")),
@@ -98,7 +98,7 @@ fig4 <- plot_ly(x = ~colnames(res4), y = ~rownames(res4),  z = ~res4) |>
       usecolormap=TRUE,
       highlightcolor="#ff0000",
       project=list(z=TRUE)))) |>
-  plotly::layout(title = 'Moving Average Remaining (1-DD)',
+  plotly::layout(title = 'Drawdown (1-DD)',
          scene = list(
            xaxis = list(title = paste0(slow_type, " slow moving avg")),
            yaxis = list(title = paste0(fast_type, " fast moving avg")),
@@ -111,7 +111,7 @@ save_image(fig4, fig4_file_name)
 # Error in py_module_import(module, convert = convert) : 
   # ModuleNotFoundError: No module named 'kaleido'
 
-# If the save_image() throws a reticulate error:
+# If the save_image() throws a reticulate error, run this:
 install.packages('reticulate')
 reticulate::install_miniconda()
 reticulate::conda_install('r-reticulate', 'python-kaleido')
