@@ -15,7 +15,7 @@ rez |>         # labels for EMA numbers, little white boxes
   geom_point(color="gray60") +
   geom_label_repel(label.padding=unit(0.15, "lines"), label.size=0.05, 
                    min.segment.length=0, force=0.5, max.iter=10000) +
-  labs(title=paste("Growth rate vs drawdowns"),
+  labs(title=paste("Growth rate vs drawdowns -", LS),
        subtitle=paste0(candles, " periods, fast ", min(runs$fast), "-", 
                        max(runs$fast), " slow ",min(runs$slow), "-", 
                        max(runs$slow),", ", round(date_range, 0),
@@ -29,7 +29,7 @@ rez |>
   geom_point(color="gray60") +
   geom_label_repel(label.padding=unit(0.15, "lines"), label.size=0.05, 
                    min.segment.length=0, force=0.5, max.iter=10000) +
-  labs(title=paste("Lake ratio vs bliss"),
+  labs(title=paste("Lake ratio vs bliss -", LS),
        subtitle=paste0(candles, " periods, fast ", min(runs$fast), "-", 
                        max(runs$fast), " slow ",min(runs$slow), "-", 
                        max(runs$slow),", ", round(date_range, 0),
@@ -42,7 +42,7 @@ rez |>
   geom_point(color="gray60") +
   geom_label_repel(label.padding=unit(0.15, "lines"), label.size=0.05, 
                    min.segment.length=0, force=0.5, max.iter=10000) +
-  labs(title=paste("Lake ratio vs drawdowns"),
+  labs(title=paste("Lake ratio vs drawdowns -", LS),
        subtitle=paste0(candles, " periods, fast ", min(runs$fast), "-", 
                        max(runs$fast), " slow ",min(runs$slow), "-", 
                        max(runs$slow),", ", round(date_range, 0),
@@ -56,7 +56,7 @@ rez |>
   geom_label_repel(label.padding=unit(0.15, "lines"), label.size=0.05, 
                    min.segment.length=0, force=0.5, max.iter=10000) +
   scale_x_continuous(labels=scales::dollar_format()) +
-  labs(title=paste("Ending value vs drawdowns"),
+  labs(title=paste("Ending value vs drawdowns -", LS),
        subtitle=paste0(candles, " periods, fast ", min(runs$fast), "-", 
                        max(runs$fast), " slow ",min(runs$slow), "-", 
                        max(runs$slow),", ", round(date_range, 0),
@@ -69,7 +69,7 @@ rez |>
   geom_point(color="gray60") +
   geom_label_repel(label.padding=unit(0.1, "lines"), label.size=0.05, 
                    min.segment.length=0, force=0.5, max.iter=10000) +
-  labs(title=paste("Growth rate vs lake ratio"),
+  labs(title=paste("Growth rate vs lake ratio -", LS),
        subtitle=paste0(candles, " periods, fast ", min(runs$fast), "-", 
                        max(runs$fast), " slow ",min(runs$slow), "-", 
                        max(runs$slow),", ", round(date_range, 0),
@@ -82,7 +82,7 @@ rez |>
   geom_point(color="gray60") +
   geom_label_repel(label.padding=unit(0.15, "lines"), label.size=0.05, 
                    min.segment.length=0, force=0.5, max.iter=10000) +
-  labs(title=paste("Bliss vs drawdowns"),
+  labs(title=paste("Bliss vs drawdowns -", LS),
        subtitle=paste0(candles, " periods, fast ", min(runs$fast), "-", 
                        max(runs$fast), " slow ",min(runs$slow), "-", 
                        max(runs$slow),", ", round(date_range, 0),
