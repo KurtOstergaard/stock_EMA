@@ -58,18 +58,18 @@ sourceCpp(
     ")     ###################
 
 ticker <- "ULTA"  
-fast_high <- 100
-fast_low <- 40
-fast_step <- 5
-slow_high <- 200
-slow_low <- 25
-slow_step <- 5
+fast_high <- 400
+fast_low <- 10
+fast_step <- 10
+slow_high <- 800
+slow_low <- 200
+slow_step <- 10
 drying_paint <- (fast_high/fast_step - fast_low/fast_step +1) * 
   (slow_high/slow_step - slow_low/slow_step +1)
 runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
                     fast=seq(fast_low, fast_high, fast_step))
 
-df_orig <- read_csv("BATS_ULTA, 1D_8ba0c.csv", col_names = TRUE)
+df_orig <- read_csv("BATS_ULTA, 5_ec9c3.csv", col_names = TRUE)
 df <- df_orig |>
   select(time:close) 
 
@@ -121,7 +121,7 @@ df_og <- df
 
 
 for (j in seq_len(nrow(runs))) {
-  # j <- 12403
+  # j <- 1024
   
   df <- df_og
   fast_lag <- runs$fast[j]
@@ -180,7 +180,6 @@ for (j in seq_len(nrow(runs))) {
       # df$amount <- floor((start_value * heat)  / (ATR_multiplier * df$atr_EMA[[1]]))
       }
     
-      
   # Close out last trade if long when data file runs out
   if(df$on[nrow(df)] == 1) {
     df$on[nrow(df)] = 0 ; df$signal[nrow(df)] = 0
@@ -225,8 +224,6 @@ for (j in seq_len(nrow(runs))) {
     df$trade_pnl[tpnl$close[i]] <- tpnl$trade_pnl[i]
     df$closed_pnl[tpnl$close[i]] <- tpnl$closed_pnl[i]
   }
-  
-
     
   # cume trade metrics
   df <- df |>
@@ -239,8 +236,6 @@ for (j in seq_len(nrow(runs))) {
       highwater = cummax(equity),
       lake = highwater - equity,
       drawdown = lake / highwater)
-  
-
   
     # summary trade table 
   trade_test <- sum(df$signal) 
@@ -283,8 +278,12 @@ for (j in seq_len(nrow(runs))) {
   trade_count <- nrow(trades)
   trade_total_pnl <- sum(trades$trade_pnl)
   zz <- split_fun(trades, trade_pnl)
-  wins <- zz[[2,3]] ; losses <- zz[[1,3]] ; won <- zz[[2,2]]; lost <- zz[[1,2]]
-  win_rate <- wins/trade_count ; dollar_won <- -zz[[2,4]]/zz[[1,4]]
+  if (dim(zz)[1] == 2) {
+    wins <- zz[[2,3]] ; losses <- zz[[1,3]] ; won <- zz[[2,2]]; lost <- zz[[1,2]]
+    win_rate <- wins/trade_count ; dollar_won <- -zz[[2,4]]/zz[[1,4]]
+  } else {
+    wins <- 0; losses <- 0; win_rate <- 0; won <- 0; lost <- 0; dollar_won <- 0
+  }
   results[j,1:17] <- as_tibble_row(          
     c(j=j, fast_lag=fast_lag, slow_lag=slow_lag, ICAGR=ICAGR, drawdown=drawdown, 
       bliss=bliss, lake=lake, end_value=end_value, trade_test=trade_test, 
@@ -322,8 +321,8 @@ df |>
   geom_smooth(method = "lm", linewidth = 25, alpha = 0.1) +
   # geom_line(aes(y=fast, alpha = 0.2)) +
   # geom_line(aes(y=slow, alpha = 0.2)) +
-  geom_line(aes(y=Efast, alpha = 0.2), color = "RED") +
-  geom_line(aes(y=Eslow, alpha = 0.2), color = "GREEN") +
+  geom_line(aes(y=Efast, alpha = 0.2), color = "GREEN") +
+  geom_line(aes(y=Eslow, alpha = 0.2), color = "RED") +
   labs(title=paste("Run completed!"),
        subtitle=paste0(candles, " periods, ", round(date_range, 0),
                        "D of data, ", epoch,",   fast: ", min(runs$fast), "-", 
