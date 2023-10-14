@@ -56,14 +56,14 @@ sourceCpp(
        return s;
      }
     ")     ###################
-
+LS <- "Long"
 ticker <- "ULTA"  
 fast_high <- 400
-fast_low <- 10
-fast_step <- 10
+fast_low <- 20
+fast_step <- 20
 slow_high <- 800
 slow_low <- 200
-slow_step <- 10
+slow_step <- 20
 drying_paint <- (fast_high/fast_step - fast_low/fast_step +1) * 
   (slow_high/slow_step - slow_low/slow_step +1)
 runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
@@ -106,7 +106,8 @@ buy_n_hold <- log(df$close[nrow(df)]/df$open[1])/(date_range/365.25)
 df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
-  labs(title=sprintf("Running next calculation...  ICAGR: %1.2f%% buy and hold", buy_n_hold *100),
+  labs(title=sprintf("Running next calculation...  ICAGR: %1.2f%% buy and hold - %s model", 
+                     buy_n_hold *100, LS),
        subtitle=paste0(candles, " periods, ",epoch, 
                        "       High: ", the_high, "  Low: ", the_low, "      ",
                        nrow(df), " rows    ", drying_paint, " runs")) +
@@ -335,8 +336,9 @@ df |>
 
 forever <- Sys.time() - start_time
 secs <- 60 *forever  / nrow(runs)
-sprintf("Yo, %1.2f min,  %1.2f per run, %i runs, %s records, over %1.0f days of data", 
-        forever, secs, nrow(results), format(nrow(df), big.mark=","), date_range)
+sprintf("Yo, %1.2f %s,  %1.2f per run, %i runs, %s records, over %1.0f days of data", 
+        forever, attr(forever, "units"), secs, nrow(results), format(nrow(df), 
+          big.mark=","), date_range)
 
 
 
