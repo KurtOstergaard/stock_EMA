@@ -72,8 +72,8 @@ mkt |>
   geom_segment(data=these_trades, aes(x=open_date, y=open_price, xend=close_date,
                                   yend=close_price, color=factor(win_lose)), linewidth = 2) +
   scale_color_manual(values= c("red", "green3")) +
-  labs(title=sprintf("%s: %0.i-%0.i, %.0f trades, ICAGR: %0.2f%%, DD: %0.2f%%, Bliss: %.2f%%, Lake: %.2f%%",  
-                     ticker, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1]*100,
+  labs(title=sprintf("%s: %s, %0.i-%0.i, %.0f trades, ICAGR: %0.2f%%, DD: %0.2f%%, Bliss: %.2f%%, Lake: %.2f%%",  
+                     ticker, LS, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1]*100,
                      these_results$drawdown[1]*100, these_results$bliss[1]*100, these_results$lake[1]*100),
        subtitle=paste0(candles, " chart, ", floor(date_range), "D of data, ", epoch))+
   xlab("Date")+
@@ -92,15 +92,15 @@ mkt |>
   geom_segment(data=these_trades, aes(x=open_date, y=open_price, xend=close_date,
                                   yend=close_price, color=factor(win_lose)), linewidth = 2) +
   scale_color_manual(values= c("red", "green3")) +
-  labs(title=sprintf("%s: %0.i-%0.i, %.0f trades, ICAGR: %0.2f%%, DD: %0.2f%%, Bliss: %.2f%%, Lake: %.2f%%",  
-                     ticker, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1]*100,
+  labs(title=sprintf("%s: %s, %0.i-%0.i, %.0f trades, ICAGR: %0.2f%%, DD: %0.2f%%, Bliss: %.2f%%, Lake: %.2f%%",  
+                     ticker, LS, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1]*100,
                      these_results$drawdown[1]*100, these_results$bliss[1]*100, these_results$lake[1]*100),
        subtitle=paste0(candles, " chart, ", floor(date_range), " days of data, ", epoch))+
   xlab("Date")+
   ylab(ticker) +
   theme(legend.position = "none")
 
-ggsave(paste0(here("output", "run "), ticker, " ", candles," ", fast_MA, 
+ggsave(paste0(here("output", "run "), LS, ticker, " ", candles," ", fast_MA, 
               "-", slow_MA, " ", epoch, run_time, ".pdf"), 
        width=11, height=8.5, units="in", dpi=300)
 
@@ -111,15 +111,15 @@ these_trades |>   # Stop analysis
   ggplot(aes(MAE_percent, trade_pnl_percent,  color=factor(win_lose))) +
   geom_point(shape=3, size=2,) +
   scale_color_manual(values= c("red","green3")) + 
-  labs(title=sprintf("%s: %0.i-%0.i, %.0f trades, ICAGR: %0.2f, DD: %0.2f, Bliss: %.2f, Lake: %.2f",  
-                     ticker, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1],
+  labs(title=sprintf("%s: %s, %0.i-%0.i, %.0f trades, ICAGR: %0.2f, DD: %0.2f, Bliss: %.2f, Lake: %.2f",  
+                     ticker, LS, fast_MA, slow_MA, nrow(these_trades), these_results$ICAGR[1],
                      these_results$drawdown[1], these_results$bliss[1], these_results$lake[1]),
        subtitle=paste0(candles, " chart, ", floor(date_range), "D of data, ", epoch))+
   xlab("Maximum Adverse Excursion") + 
   ylab("Trade P&L") +
   theme(legend.position = "none")
 
-ggsave(paste0(here("output", "stop "), candles," ", runs$fast[j], 
+ggsave(paste0(here("output", "stop "), LS, candles," ", runs$fast[j], 
               "-", runs$slow[j], " ", epoch, run_time, " ", j, ".pdf"), 
        width=11, height=8.5, units="in", dpi=300)
 
@@ -142,9 +142,9 @@ ggsave(paste0(here("output", "run "), ticker, " ", candles," ", fast_MA,
 
 
 
-#   DON'T Use this until better numbers 
-#   DON'T Use this until better numbers 
-#   DON'T Use this until better numbers 
+#   DON'T Use this until fixed 
+#   DON'T Use this until fixed 
+#   DON'T Use this until fixed 
 df |>        # lake over time with equity line
   ggplot(aes(x = time)) +
   geom_ribbon(aes(ymin=equity, ymax=highwater, x=time, fill = "band"), alpha = 0.9)+
