@@ -41,14 +41,14 @@ colnames(trade_files) <- c("File Name", "Rows")
 
 #   ################ load files  ############
 big_trades <- read_csv(trade_file_name, col_names = TRUE)
-# big_trades <- read_csv(here("output", "trades 1 runs 1 sec fast 580-580 slow 2680-2680 fr 9-18-23 to 9-19-23 21-51.csv"), col_names = TRUE)
+# big_trades <- read_csv(here("output", "trades 1 runs 1 sec.csv"), col_names = TRUE)
 big_results <- read_csv(results_file_name, col_names = TRUE)
 
 mkt <- df_og |> select(time:close)
 # mkt <- read_csv("CME_MINI_ES1!, 1S_9e97e.csv", col_names = TRUE) |>  select(time:close)
 mkt_high <- max(mkt$high) ; mkt_low <- min(mkt$low) ; mkt_range <- mkt_high - mkt_low
 
-fast_MA <- 120
+fast_MA <- 115
 slow_MA <- 420
 
 mkt$Efast <- ewmaRcpp(mkt$close, fast_MA)    
@@ -83,7 +83,7 @@ mkt |>
 
 
 
-mkt |>        
+mkt |>        # EMAs and trades over price history
   ggplot(aes(x = time)) +
   geom_line(aes(x=time, y=Eslow), alpha=0.8, color="tomato") +
   geom_line(aes(x=time, y=Efast), alpha=0.8, color="limegreen") +
