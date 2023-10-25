@@ -19,22 +19,21 @@ theme_set(theme_light())                # ggplot theme or _bw()
 # conflicts_prefer(dplyr::filter) 
 ################
 
-LS <- "Long"
-ticker <- "ULTA"  
+LS <- "Short"
+ticker <- "MPC"  
 fast_high <- 200
-fast_low <- 100
+fast_low <- 5
 fast_step <- 5
-slow_high <- 450
-slow_low <- 200
-slow_step <- 5
-drying_paint <- (fast_high/fast_step - fast_low/fast_step +1) * 
-  (slow_high/slow_step - slow_low/slow_step +1)
-runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
-                    fast=seq(fast_low, fast_high, fast_step))
+slow_high <- 500
+slow_low <- 10
+slow_step <- 10
 
-df_raw <- read_csv("BATS_ULTA, 5_ec9c3.csv", col_names = TRUE)
+df_raw <- read_csv("BATS_MPC, 5_1994c.csv", col_names = TRUE)
 df <- df_raw |>
   select(time:close) 
+
+runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
+                    fast=seq(fast_low, fast_high, fast_step))
 
 # calculates pnl summary statistics
 split_fun <- function(data, column_name, factor_name) {
@@ -93,7 +92,7 @@ epoch <- paste0(get_month(start_date),"-", get_day(start_date), "-",
                 get_year(start_date)-2000," to ", get_month(end_date), 
                 "-", get_day(end_date), "-", get_year(end_date)-2000)
 
-trades_global = tibble() # one big file for all teh trades on each run.
+trades_global = tibble() # one big file for all the trades on each run.
 results <- tibble() # create the file to collect the results of each run
 
 start_value <- 1e4
@@ -105,13 +104,16 @@ buy_n_hold <- log(df$close[nrow(df)]/df$open[1])/
 df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
-  labs(title=sprintf("Running next calculation...  ICAGR: %1.2f%% buy and hold - %s model", 
-                     buy_n_hold *100, LS),
-       subtitle=paste0(candles, " periods, ",epoch, 
-                       "       High: ", max(df$high), "  Low: ", min(df$low), "      ",
-                       nrow(df), " rows    ", drying_paint, " runs")) +
-  theme(legend.position = "none")
+  labs(title=sprintf("%s, %s, %s,  %1.1f%% buy & hold return - Fast: %d-%d Slow: %d-%d", 
+                     ticker, LS, epoch, buy_n_hold *100, min(runs$fast), 
+                     max(runs$fast), min(runs$slow), max(runs$slow)),
+      subtitle=sprintf(
+        "%s periods, %d days, Open: %1.f, High: %1.f, Low: %1.f, Close: %1.f, %d runs,  %d rows",
+           candles, round(date_range, 0), df$open[1], max(df$high), min(df$low),  
+        df$close[nrow(df)], nrow(runs), nrow(df))) +
+
+    theme(legend.position = "none")
 
 df_og <- df
 
-# Not running yet, be sure to run the trade
+# Not running yet, kick off the runs
