@@ -1,11 +1,11 @@
 # long.R | stock_EMA | long stock EMA model
 
 
+LS <- "Short"
+l_s <- ifelse(LS=="Long", 1, -1)
 ###################### optimization sequence #############################
 start_time <- Sys.time()               # for internal monitoring
 run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
-LS <- "Long"
-l_s <- ifelse(LS=="Long", 1, -1)
   
 for (j in seq_len(nrow(runs))) {
   # j <- 80
@@ -216,19 +216,16 @@ df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
   geom_smooth(method = "lm", linewidth = 25, alpha = 0.1) +
-  # geom_line(aes(y=fast, alpha = 0.2)) +
-  # geom_line(aes(y=slow, alpha = 0.2)) +
   geom_line(aes(y=Efast, alpha = 0.2), color = "GREEN") +
   geom_line(aes(y=Eslow, alpha = 0.2), color = "RED") +
-  labs(title=paste("Run completed!"),
-       subtitle=paste0(candles, " periods, ", round(date_range, 0),
-                       "D of data, ", epoch,",   fast: ", min(runs$fast), "-", 
-                       max(runs$fast), " slow: ",min(runs$slow), "-", 
-                       max(runs$slow),", ",  "    High: ", max(df$high), " Low: ",
-                       min(df$low))) +
+  labs(title=sprintf("Run completed. %s, %s, %s,  %1.1f%% buy & hold return - Fast: %d-%d Slow: %d-%d", 
+                     ticker, LS, epoch, buy_n_hold *100, min(runs$fast), 
+                     max(runs$fast), min(runs$slow), max(runs$slow)),
+       subtitle=sprintf(
+         "%s periods, %d days, Open: %1.f, High: %1.f, Low: %1.f, Close: %1.f, %d runs,  %d rows",
+         candles, round(date_range, 0), df$open[1], max(df$high), min(df$low),  
+         df$close[nrow(df)], nrow(runs), nrow(df))) +
   theme(legend.position = "none")
-
-
 
 forever <- Sys.time() - start_time
 secs <- ifelse(attr(forever, "units")=="secs", 1, 60) *forever  / nrow(runs)
