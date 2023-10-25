@@ -35,6 +35,8 @@ fig1 <- plot_ly(x = ~colnames(res1), y = ~rownames(res1),  z = ~res1) |>
            yaxis = list(title = paste0(fast_type, " fast moving avg")),
            zaxis = list(title = "ICAGR")))
 fig1  
+write.csv(as.data.frame(res1, row.names = row.names(res1)),
+          sprintf("%s %s %s %s matrix.csv", ticker, LS, candles, epoch), na="NA" )
 fig1_file_name <- paste0(here("output", "surface growth "), run_id, run_time, ".pdf", sep="")
 save_image(fig1, fig1_file_name)
 
