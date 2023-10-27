@@ -8,7 +8,7 @@ start_time <- Sys.time()               # for internal monitoring
 run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
   
 for (j in seq_len(nrow(runs))) {
-  # j <- 80
+  # j <- 1147
   
   df <- df_og
   fast_lag <- runs$fast[j]
@@ -36,9 +36,16 @@ for (j in seq_len(nrow(runs))) {
            off = if_else(cross < 0 & lag(cross) >= 0, -1, 0),
            signal = on + off) |>
     drop_na(on) |>
-    drop_na(off)
-  df$off[1] <- 0      
-
+    drop_na(off) 
+  
+  if(df$cross[1] > 0) {     # First row set up trade signal details
+    df$on[1] <- 1
+    df$signal[1] <- 1
+  } else {
+    df <- df |>
+      slice(which.max(on):nrow(df)) # start with first trade
+  }
+     
   if(fast_lag == slow_lag | sum(df$on) == 0) {  # avoid errors where no trades
     results[j,1:17] <- as_tibble_row(
       c(j=j, fast_lag=fast_lag, slow_lag=slow_lag, ICAGR=0, drawdown=0,
@@ -64,11 +71,6 @@ for (j in seq_len(nrow(runs))) {
     fill(open_date)  |>
     drop_na(open_price)
   
-  # First row set up
-  if(df$cross[1] > 0) {     # trade signal details
-    df$on[1] <- 1
-    df$signal[1] <- 1
-  }
   
   # Close out last trade if long when data file runs out
   if(df$on[nrow(df)] == 1) {
@@ -83,7 +85,8 @@ for (j in seq_len(nrow(runs))) {
   
   # Calc trade pnl 
   trade_test <- sum(df$signal) 
-  if(trade_test != 0) warning("HOLY SHIT! THE TRADES ARE FUCKED!")
+  if(trade_test != 0 | min(df$open_trade) !=0) warning(
+    "HOLY SHIT! THE TRADES ARE FUCKED!")
   tpnl <- df |>
     select(off, open_date:closed_pnl) |>
     filter(off == -1) |>
@@ -129,10 +132,7 @@ for (j in seq_len(nrow(runs))) {
       lake = highwater - equity,
       drawdown = lake / highwater)
   
-  # summary trade table 
-  trade_test <- sum(df$signal) 
-  if(trade_test != 0) warning("HOLY SHIT! THE TRADES ARE FUCKED!")
-  trades <- df |>
+  trades <- df |>   # create the trade table
     select(off, open_date:drawdown) |>
     filter(off == -1) |>
     mutate(
@@ -210,7 +210,9 @@ trade_file_name <- paste0(here("output", "trades "), ticker, " ", LS, " ",
                     nrow(runs), " runs", run_id, run_time, ".csv", sep="")
 write_csv(trades_global, trade_file_name)
 
-##########################
+ggsave(paste0(here("output", "run "), run_id, run_time, ".pdf"), 
+       width=14, height=11, units="in", dpi=300)
+
 
 df |>
   ggplot(aes(x = time, y = close)) +
@@ -228,7 +230,7 @@ df |>
   theme(legend.position = "none")
 
 forever <- Sys.time() - start_time
-secs <- ifelse(attr(forever, "units")=="secs", 1, 60) *forever  / nrow(runs)
+secs <- ifelse(attr(forever, "units")=="secs", 1, 60) * forever / nrow(runs)
 sprintf("Yo, %1.2f %s,  %1.2f per run, %i runs, %s records, over %1.0f days of data", 
         forever, attr(forever, "units"), secs, nrow(results), format(nrow(df), 
                                            big.mark=","), date_range)
