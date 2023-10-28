@@ -20,7 +20,7 @@ theme_set(theme_light())                # ggplot theme or _bw()
 ################
 
 LS <- "Short"
-ticker <- "MPC"  
+ticker <- "ULTA"  
 fast_high <- 200
 fast_low <- 5
 fast_step <- 5
@@ -28,10 +28,10 @@ slow_high <- 500
 slow_low <- 10
 slow_step <- 10
 
-df_raw <- read_csv("BATS_MPC, 5_1994c.csv", col_names = TRUE)
-df <- df_raw |>
+df_raw <- read_csv("BATS_ULTA, 5_ec9c3.csv", col_names = TRUE)
+df <- df_raw |>   
   select(time:close) 
-
+ 
 runs <- expand.grid(slow=seq(slow_low, slow_high, slow_step), 
                     fast=seq(fast_low, fast_high, fast_step))
 
@@ -93,7 +93,7 @@ epoch <- paste0(get_month(start_date),"-", get_day(start_date), "-",
                 "-", get_day(end_date), "-", get_year(end_date)-2000)
 
 trades_global = tibble() # one big file for all the trades on each run.
-results <- tibble() # create the file to collect the results of each run
+results <- tibble() # create a file to collect the results of each run
 
 start_value <- 1e4
 skid <- 0   # skid is expected loss on trade execution, set to ZERO for building the model!
@@ -111,9 +111,12 @@ df |>
         "%s periods, %d days, Open: %1.f, High: %1.f, Low: %1.f, Close: %1.f, %d runs,  %d rows",
            candles, round(date_range, 0), df$open[1], max(df$high), min(df$low),  
         df$close[nrow(df)], nrow(runs), nrow(df))) +
-
     theme(legend.position = "none")
 
 df_og <- df
 
-# Not running yet, kick off the runs
+########################################
+#                                      #
+# Not running yet, kick off the runs   #
+#                                      #
+########################################
