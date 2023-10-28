@@ -7,8 +7,8 @@ l_s <- ifelse(LS=="Long", 1, -1)
 start_time <- Sys.time()               # for internal monitoring
 run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
   
-for (j in seq_len(nrow(runs))) {
-  # j <- 1147
+# for (j in seq_len(nrow(runs))) {
+  j <- 1147
   
   df <- df_og
   fast_lag <- runs$fast[j]
@@ -17,10 +17,11 @@ for (j in seq_len(nrow(runs))) {
   # exponential moving averages
   df$Efast <- ewmaRcpp(df$close, fast_lag)    
   df$Eslow <- ewmaRcpp(df$close, slow_lag)  +1e-6
-  
-  # time management for chunk runs 
+
+    # time management for chunk runs 
   # df<- df|>
-  #   filter(time >= "2018-10-25" & time <= "2023-10-25")
+  #   slice(6751:13502)    # [13502:20253,]
+  
   start_date <- min(df$time) ; end_date <- max(df$time)
   date_range <- as.numeric(difftime(end_date, start_date, units = "days"))
   
@@ -47,11 +48,11 @@ for (j in seq_len(nrow(runs))) {
   }
      
   if(fast_lag == slow_lag | sum(df$on) == 0) {  # avoid errors where no trades
-    results[j,1:17] <- as_tibble_row(
+    results[j,1:19] <- as_tibble_row(
       c(j=j, fast_lag=fast_lag, slow_lag=slow_lag, ICAGR=0, drawdown=0,
-        bliss=0, lake=0, end_value=0, trade_test=0,
+        bliss=0, bliss2=0, lake=0, end_value=0, trade_test=0,
         trade_count=0, wins=0, losses=0, win_rate=0,
-        trade_total_pnl=0, won=0, lost=0, dollar_won=0),
+        trade_total_pnl=0, won=0, lost=0, dollar_won=0, LS=l_s),
       .name_repair = "universal")
     next
   }
@@ -70,7 +71,6 @@ for (j in seq_len(nrow(runs))) {
     fill(open_price) |>
     fill(open_date)  |>
     drop_na(open_price)
-  
   
   # Close out last trade if long when data file runs out
   if(df$on[nrow(df)] == 1) {
@@ -110,7 +110,7 @@ for (j in seq_len(nrow(runs))) {
   df$closed_pnl[tpnl$close[1]] <- tpnl$closed_pnl[1]
   
   for (i in seq2(2, nrow(tpnl))) {
-    tpnl$amount[i] <- tpnl$closed_pnl[i-1] /tpnl$open_price[i]
+    tpnl$amount[i] <- floor(tpnl$closed_pnl[i-1] /tpnl$open_price[i])
     tpnl$trade_pnl[i] <- tpnl$amount[i] * (tpnl$close_price[i] - 
               tpnl$open_price[i]) * l_s
     tpnl$closed_pnl[i] <- tpnl$closed_pnl[i-1] + tpnl$trade_pnl[i]
@@ -167,6 +167,7 @@ for (j in seq_len(nrow(runs))) {
   drawdown <- max(df$drawdown)
   lake <- sum(df$lake) / sum(df$equity)
   bliss <- ICAGR / drawdown
+  bliss2 <- ICAGR / (drawdown + lake)
   trade_count <- nrow(trades)
   trade_total_pnl <- sum(trades$trade_pnl)
   zz <- rep(0, 16) ; dim(zz) <- c(2,8)
@@ -177,11 +178,11 @@ for (j in seq_len(nrow(runs))) {
   } else {
     wins <- 0; losses <- 0; win_rate <- 0; won <- 0; lost <- 0; dollar_won <- 0
   }
-  results[j,1:17] <- as_tibble_row(          
+  results[j,1:19] <- as_tibble_row(          
     c(j=j, fast_lag=fast_lag, slow_lag=slow_lag, ICAGR=ICAGR, drawdown=drawdown, 
-      bliss=bliss, lake=lake, end_value=end_value, trade_test=trade_test, 
+      bliss=bliss, bliss2=bliss2, lake=lake, end_value=end_value, trade_test=trade_test, 
       trade_count=trade_count, wins=wins, losses=losses, win_rate=win_rate,
-      trade_total_pnl=trade_total_pnl, won=won, lost=lost, dollar_won=dollar_won),
+      trade_total_pnl=trade_total_pnl, won=won, lost=lost, dollar_won=dollar_won, LS=l_s),
     .name_repair = "universal")
   
   # accumulate the trades into the global trade table
@@ -190,9 +191,13 @@ for (j in seq_len(nrow(runs))) {
            MA_fast = fast_lag)
   trades_global <- trades_global |>
     bind_rows(trade_tmp)
-  
-  #  Yes, it's running...
-}       #################### optimization loop end    ##########################
+
+  ###################################
+  #                                 # 
+  #  Yes, it's running now...       #
+  #                                 # 
+} ###################################
+#  optimization loop end  
 # j <- j +1
 
 epoch <- paste0(get_month(start_date),"-", get_day(start_date), "-",
