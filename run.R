@@ -1,26 +1,25 @@
 # long.R | stock_EMA | long stock EMA model
 
-
 LS <- "Short"
 l_s <- ifelse(LS=="Long", 1, -1)
-###################### optimization sequence #############################
+
 start_time <- Sys.time()               # for internal monitoring
 run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
-  
-# for (j in seq_len(nrow(runs))) {
-  j <- 1147
+
+###################### optimization sequence #############################
+for (j in seq_len(nrow(runs))) {
+  # j <- 1147
   
   df <- df_og
+  # exponential moving averages
   fast_lag <- runs$fast[j]
   slow_lag <- runs$slow[j]
-  
-  # exponential moving averages
   df$Efast <- ewmaRcpp(df$close, fast_lag)    
   df$Eslow <- ewmaRcpp(df$close, slow_lag)  +1e-6
 
     # time management for chunk runs 
-  # df<- df|>
-  #   slice(6751:13502)    # [13502:20253,]
+  df<- df|>
+    slice(13502:20253)    # [13502:20253,]
   
   start_date <- min(df$time) ; end_date <- max(df$time)
   date_range <- as.numeric(difftime(end_date, start_date, units = "days"))
@@ -39,7 +38,7 @@ run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
     drop_na(on) |>
     drop_na(off) 
   
-  if(df$cross[1] > 0) {     # First row set up trade signal details
+  if(df$cross[1] > 0) {  # First row trade signal set up
     df$on[1] <- 1
     df$signal[1] <- 1
   } else {
@@ -61,8 +60,8 @@ run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
     mutate(open_trade = cumsum(signal),
            open_date = if_else(on == 1, as_datetime(lead(time), tz="America/New_York"), NA),
            close_date = if_else(off == -1, as_datetime(lead(time), tz="America/New_York"), NA),
-           open_price = if_else(on == 1, lead(open) + skid, NA),
-           close_price = if_else(off == -1, lead(open) - skid, 0),
+           open_price = if_else(on == 1, lead(open) + skid * l_s, NA),
+           close_price = if_else(off == -1, lead(open) - skid * l_s, 0),
            amount = NA,
            trade_pnl = 0,  
            closed_pnl = 0,
@@ -72,7 +71,7 @@ run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
     fill(open_date)  |>
     drop_na(open_price)
   
-  # Close out last trade if long when data file runs out
+  # Close out last trade if trade is open when data file runs out
   if(df$on[nrow(df)] == 1) {
     df$on[nrow(df)] = 0 ; df$signal[nrow(df)] = 0
   } else if (df$cross[nrow(df)] > 0 | df$signal[nrow(df)] == -1) {
@@ -83,24 +82,23 @@ run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
     df$close_price[nrow(df)] <- df$close[nrow(df)]
   }
   
-  # Calc trade pnl 
-  trade_test <- sum(df$signal) 
+  trade_test <- sum(df$signal)     # Trade test
   if(trade_test != 0 | min(df$open_trade) !=0) warning(
     "HOLY SHIT! THE TRADES ARE FUCKED!")
-  tpnl <- df |>
+  
+  tpnl <- df |>                  # Calc trade pnl 
     select(off, open_date:closed_pnl) |>
     filter(off == -1) |>
     mutate(off=NULL)
   
   opens <- match(tpnl$open_date,  df$open_date)
   closes <- match(tpnl$close_date,  df$close_date)
-  
   tpnl <- tpnl  |>
     mutate(
       open = opens,
       close = closes
     )
-  
+  # calc the first row values
   tpnl$amount[1] <- floor(start_value / tpnl$open_price[1])
   tpnl$trade_pnl[1] <- tpnl$amount[1] * (tpnl$close_price[1] - 
               tpnl$open_price[1]) * l_s
@@ -109,6 +107,7 @@ run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
   df$trade_pnl[tpnl$close[1]] <- tpnl$trade_pnl[1]
   df$closed_pnl[tpnl$close[1]] <- tpnl$closed_pnl[1]
   
+  # loop through the rest of the trades
   for (i in seq2(2, nrow(tpnl))) {
     tpnl$amount[i] <- floor(tpnl$closed_pnl[i-1] /tpnl$open_price[i])
     tpnl$trade_pnl[i] <- tpnl$amount[i] * (tpnl$close_price[i] - 
@@ -192,6 +191,7 @@ run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
   trades_global <- trades_global |>
     bind_rows(trade_tmp)
 
+  
   ###################################
   #                                 # 
   #  Yes, it's running now...       #
@@ -207,7 +207,7 @@ epoch <- paste0(get_month(start_date),"-", get_day(start_date), "-",
 
 # save the results and trades_global files
 run_id <- paste0( " ", candles," fast ", min(runs$fast), "-", max(runs$fast), 
-                  " slow ",min(runs$slow), "-", max(runs$slow), " fr ", epoch)
+                  " slow ",min(runs$slow), "-", max(runs$slow), " ", epoch)
 results_file_name <- paste0(here("output", "results "), ticker, " ", LS, " ",
                     nrow(results), " runs ", run_id, run_time, ".csv", sep="")
 write_csv(results, results_file_name)
@@ -226,7 +226,7 @@ df |>
   geom_line(aes(y=Efast, alpha = 0.2), color = "GREEN") +
   geom_line(aes(y=Eslow, alpha = 0.2), color = "RED") +
   labs(title=sprintf("Run completed. %s, %s, %s,  %1.1f%% buy & hold return - Fast: %d-%d Slow: %d-%d", 
-                     ticker, LS, epoch, buy_n_hold *100, min(runs$fast), 
+                     ticker, LS, epoch, buy_n_hold(df) *100, min(runs$fast), 
                      max(runs$fast), min(runs$slow), max(runs$slow)),
        subtitle=sprintf(
          "%s periods, %d days, Open: %1.f, High: %1.f, Low: %1.f, Close: %1.f, %d runs,  %d rows",
