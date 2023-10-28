@@ -70,6 +70,10 @@ sourceCpp(
        return s;
      }
     ")     ###################
+buy_n_hold <- function(x) {
+  log(x$close[nrow(x)]/x$open[1])/
+  (as.numeric(difftime(max(x$time), min(x$time), units = "days"))/365.25)
+}
 # discern time interval from input file
 first_row_time <- df$time[1] ; second_row_time <- df$time[2] ; third_row_time <- df$time[3]
 interval <- min(as.numeric(difftime(second_row_time, first_row_time, units = "mins")),
@@ -96,16 +100,13 @@ trades_global = tibble() # one big file for all the trades on each run.
 results <- tibble() # create a file to collect the results of each run
 
 start_value <- 1e4
-skid <- 0   # skid is expected loss on trade execution, set to ZERO for building the model!
-
-buy_n_hold <- log(df$close[nrow(df)]/df$open[1])/
-  (as.numeric(difftime(max(df$time), min(df$time), units = "days"))/365.25)
+skid <- 0.125   # skid is expected loss on trade execution
 
 df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
   labs(title=sprintf("%s, %s, %s,  %1.1f%% buy & hold return - Fast: %d-%d Slow: %d-%d", 
-                     ticker, LS, epoch, buy_n_hold *100, min(runs$fast), 
+                     ticker, LS, epoch, buy_n_hold(df) *100, min(runs$fast), 
                      max(runs$fast), min(runs$slow), max(runs$slow)),
       subtitle=sprintf(
         "%s periods, %d days, Open: %1.f, High: %1.f, Low: %1.f, Close: %1.f, %d runs,  %d rows",
