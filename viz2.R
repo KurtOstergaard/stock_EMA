@@ -7,8 +7,7 @@ theme_set(theme_light())                # ggplot theme or _bw()
 
 # results <- results |>  filter(!fast_lag==slow_lag) # for same MA permutation issue
 rez <- results |>   
-  mutate(b2 = ICAGR/lake) |>
-    slice_max(b2, n=50)
+     slice_max(ICAGR, n=50)
   
 rez |>         # labels for EMA numbers, little white boxes
   ggplot(aes(x = ICAGR, y = drawdown, label = paste0(fast_lag, "-", slow_lag))) +
