@@ -109,6 +109,28 @@ fig4
 fig4_file_name <- paste0(here("output", "surface drawdown "), run_id, run_time, ".pdf", sep="")
 save_image(fig4, fig4_file_name)
 
+res5 <- results |>         # bliss2
+  select(slow_lag, fast_lag, bliss2) |>
+  pivot_wider(names_from = slow_lag, values_from = bliss2) |>
+  as.matrix()
+rownames(res5) <- res5[,1]
+res5 <- res5[,-1]
+fig5 <- plot_ly(x = ~colnames(res5), y = ~rownames(res5),  z = ~res5) |>
+  add_surface(contours = list(
+    z = list(
+      show=TRUE,
+      usecolormap=TRUE,
+      highlightcolor="#ff0000",
+      project=list(z=TRUE)))) |>
+  plotly::layout(title = paste0(LS, ' Bliss2 (ICAGR / ( Lake + DD)'),
+                 scene = list(
+                   xaxis = list(title = paste0(slow_type, " slow moving avg")),
+                   yaxis = list(title = paste0(fast_type, " fast moving avg")),
+                   zaxis = list(title = "Bliss2")))
+fig2
+fig2_file_name <- paste0(here("output", "surface bliss2 "), run_id, run_time, ".pdf", sep="")
+save_image(fig2, fig2_file_name)
+
 
 # Error in py_module_import(module, convert = convert) : 
   # ModuleNotFoundError: No module named 'kaleido'
