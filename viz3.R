@@ -129,10 +129,10 @@ ggsave(paste0(here("output", "stop "), LS, candles," ", runs$fast[j],
 df |>
   ggplot(aes(x = time, y = close)) +
   geom_line(alpha = 0.4) +
-  labs(title=sprintf("%s:    buy and hold ICAGR: %1.2f%% ", ticker, buy_n_hold *100),
+  labs(title=sprintf("%s:    buy and hold ICAGR: %1.2f%% ", ticker, buy_n_hold(df) *100),
        subtitle=paste0(candles, " periods, ",epoch, 
-                       "       High: ", the_high, "  Low: ", the_low, "      ",
-                       nrow(df), " rows    ", drying_paint, " runs")) +
+                       "       High: ", mkt_high, "  Low: ", mkt_low, "      ",
+                       nrow(df), " rows    ", nrow(runs), " runs")) +
   theme(legend.position = "none")
 
 ggsave(paste0(here("output", "run "), ticker, " ", candles," ", fast_MA, 
