@@ -8,7 +8,7 @@ run_time <- paste0(" ", get_hour(start_time), "-", get_minute(start_time))
 
 ###################### optimization sequence #############################
 for (j in seq_len(nrow(runs))) {
-  # j <- 1147
+  # j <- 550
   
   df <- df_og
   # exponential moving averages
@@ -18,8 +18,8 @@ for (j in seq_len(nrow(runs))) {
   df$Eslow <- ewmaRcpp(df$close, slow_lag)  +1e-6
 
     # time management for chunk runs 
-  df<- df|>
-    slice(13502:20253)    # [13502:20253,]
+  # df<- df|>
+  #   slice(13502:20253)    # [13502:20253,]
   
   start_date <- min(df$time) ; end_date <- max(df$time)
   date_range <- as.numeric(difftime(end_date, start_date, units = "days"))
@@ -58,8 +58,10 @@ for (j in seq_len(nrow(runs))) {
   
   df <- df |>
     mutate(open_trade = cumsum(signal),
-           open_date = if_else(on == 1, as_datetime(lead(time), tz="America/New_York"), NA),
-           close_date = if_else(off == -1, as_datetime(lead(time), tz="America/New_York"), NA),
+           open_date = if_else(on == 1, as_datetime(lead(time), 
+                                 tz="America/New_York"), NA),
+           close_date = if_else(off == -1, as_datetime(lead(time), 
+                                  tz="America/New_York"), NA),
            open_price = if_else(on == 1, lead(open) + skid * l_s, NA),
            close_price = if_else(off == -1, lead(open) - skid * l_s, 0),
            amount = NA,
@@ -172,16 +174,21 @@ for (j in seq_len(nrow(runs))) {
   zz <- rep(0, 16) ; dim(zz) <- c(2,8)
   zz <- split_fun(trades, trade_pnl)
   if (dim(zz)[1] == 2) {
-    wins <- zz[[2,3]] ; losses <- zz[[1,3]] ; won <- zz[[2,2]]; lost <- zz[[1,2]]
+    wins <- zz[[2,3]] ; losses <- zz[[1,3]] ; won <- zz[[2,2]]; lost <- zz[[1,2]];
     win_rate <- wins/trade_count ; dollar_won <- -zz[[2,4]]/zz[[1,4]]
+  } else if (trade_total_pnl > 0) {
+    wins <- zz[[1,3]]; losses <- 0;  won <- zz[[1,2]]; lost <- 0; 
+    win_rate <- wins/trade_count; dollar_won <- 0
   } else {
-    wins <- 0; losses <- 0; win_rate <- 0; won <- 0; lost <- 0; dollar_won <- 0
+   wins <- 0; losses <- zz[[1,3]]; won <- 0; lost <- zz[[1,2]]; 
+   win_rate <- wins/trade_count; dollar_won <- 0
   }
   results[j,1:19] <- as_tibble_row(          
     c(j=j, fast_lag=fast_lag, slow_lag=slow_lag, ICAGR=ICAGR, drawdown=drawdown, 
-      bliss=bliss, bliss2=bliss2, lake=lake, end_value=end_value, trade_test=trade_test, 
-      trade_count=trade_count, wins=wins, losses=losses, win_rate=win_rate,
-      trade_total_pnl=trade_total_pnl, won=won, lost=lost, dollar_won=dollar_won, LS=l_s),
+      bliss=bliss, bliss2=bliss2, lake=lake, end_value=end_value,
+      trade_test=trade_test, trade_count=trade_count, wins=wins, losses=losses, 
+      win_rate=win_rate, trade_total_pnl=trade_total_pnl, won=won, lost=lost, 
+      dollar_won=dollar_won, LS=l_s),
     .name_repair = "universal")
   
   # accumulate the trades into the global trade table
@@ -225,11 +232,12 @@ df |>
   geom_smooth(method = "lm", linewidth = 25, alpha = 0.1) +
   geom_line(aes(y=Efast, alpha = 0.2), color = "GREEN") +
   geom_line(aes(y=Eslow, alpha = 0.2), color = "RED") +
-  labs(title=sprintf("Run completed. %s, %s, %s,  %1.1f%% buy & hold return - Fast: %d-%d Slow: %d-%d", 
+  labs(title=sprintf(
+   "Run completed. %s, %s, %s,  %1.1f%% buy'n'hold return - Fast: %d-%d Slow: %d-%d", 
                      ticker, LS, epoch, buy_n_hold(df) *100, min(runs$fast), 
                      max(runs$fast), min(runs$slow), max(runs$slow)),
        subtitle=sprintf(
-         "%s periods, %d days, Open: %1.f, High: %1.f, Low: %1.f, Close: %1.f, %d runs,  %d rows",
+  "%s, %d days, Open: %1.f, High: %1.f, Low: %1.f, Close: %1.f, %d runs,  %d rows",
          candles, round(date_range, 0), df$open[1], max(df$high), min(df$low),  
          df$close[nrow(df)], nrow(runs), nrow(df))) +
   theme(legend.position = "none")
