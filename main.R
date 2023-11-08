@@ -28,7 +28,8 @@ slow_high <- 500
 slow_low <- 10
 slow_step <- 10
 
-df_raw <- read_csv("BATS_ULTA, 5_ec9c3.csv", col_names = TRUE)
+df_raw <- read_csv("BATS_ULTA, 5_00b3e.csv", col_names = TRUE)
+# df_raw <- read_csv("BATS_ULTA, 5_ec9c3.csv", col_names = TRUE)
 df <- df_raw |>   
   select(time:close) 
  
