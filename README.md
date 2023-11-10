@@ -43,5 +43,5 @@ Option, command E will run from teh cursor to the end of the file.
 These are Mac keyboard shortcuts. PC shortcuts are similar.
 Option shift K brings up the keyboard shortcut menu for R Studio.
 
-Using the shortcuts above for all the runs, instead of sourcing them, will show graphs while running and after finishing. 
+Using the shortcuts above for all the runs, instead of sourcing them, will show graphs while running and after finishing. Depending on the computer, the runs may take a few minutes. 
 
