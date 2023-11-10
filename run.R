@@ -1,6 +1,6 @@
 # long.R | stock_EMA | long stock EMA model
 
-LS <- "Short"
+# LS <- "Long"
 l_s <- ifelse(LS=="Long", 1, -1)
 
 start_time <- Sys.time()               # for internal monitoring
