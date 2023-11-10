@@ -1,6 +1,6 @@
 #  main.R | stock_EMA | setup for single stock EMA buy and sell signals
 
-rm(list=ls()) ###############
+rm(list=ls()) ############### option command E to run to the end
 # library(conflicted)
 library(tidyverse, quietly = TRUE)
 library(lubridate, quietly = TRUE)
@@ -19,7 +19,7 @@ theme_set(theme_light())                # ggplot theme or _bw()
 # conflicts_prefer(dplyr::filter) 
 ################
 
-LS <- "Short"
+LS <- "Long"
 ticker <- "ULTA"  
 fast_high <- 200
 fast_low <- 5
@@ -28,8 +28,8 @@ slow_high <- 500
 slow_low <- 10
 slow_step <- 10
 
-df_raw <- read_csv("BATS_ULTA, 5_00b3e.csv", col_names = TRUE)
-# df_raw <- read_csv("BATS_ULTA, 5_ec9c3.csv", col_names = TRUE)
+# df_raw <- read_csv("BATS_ULTA, 5_00b3e.csv", col_names = TRUE)
+df_raw <- read_csv("BATS_ULTA, 5_ec9c3.csv", col_names = TRUE)
 df <- df_raw |>   
   select(time:close) 
  
