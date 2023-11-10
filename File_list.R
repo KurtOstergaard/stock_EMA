@@ -33,4 +33,4 @@ View(files_galore)
 # print(files_galore)
 
 # periodicity() from quantmod does pretty much the same thing
-# unclass(periodicity()) to get a list of values
+# unclass(periodicity()) to get a list of values 
